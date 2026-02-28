@@ -1,92 +1,87 @@
-# 🚀 Wallet REST API
+Wallet REST API
 
-High-throughput Wallet REST API built with **Java 17**, **Spring Boot 3.2**, **PostgreSQL**, **Liquibase**, and **Docker**.
+High-throughput Wallet REST API built with Java 17, Spring Boot 3.2, PostgreSQL, Liquibase, and Docker.
 
-Designed to safely handle **1000 RPS per wallet** using proper concurrency control and transaction management.
+Designed to safely handle 1000 RPS per wallet using proper concurrency control and transactional consistency.
 
----
+📌 Features
 
-## 📌 Features
+Deposit and Withdraw operations
 
-- Deposit and Withdraw operations
-- Automatic wallet creation on first deposit
-- Balance retrieval endpoint
-- Pessimistic locking (`SELECT ... FOR UPDATE`)
-- Liquibase database migrations
-- Dockerized application + PostgreSQL
-- Environment-based configuration (no rebuild required)
-- Integration test coverage
-- Consistent error response format
-- No 50X errors under concurrent load
+Automatic wallet creation on first deposit
 
----
+Retrieve wallet balance
 
-## 🏗 Tech Stack
+Pessimistic locking (SELECT ... FOR UPDATE)
 
-- Java 17
-- Spring Boot 3.2
-- Spring Data JPA
-- PostgreSQL
-- Liquibase
-- HikariCP (Connection Pool)
-- Docker & Docker Compose
-- JUnit 5 (Integration Tests)
+Liquibase database migrations
 
----
+Dockerized application and PostgreSQL database
 
-# 📡 API
+Environment-based configuration (no rebuild required)
 
-## 1️⃣ Execute Wallet Operation
+Integration test coverage
 
-### `POST /api/v1/wallet`
+Consistent error response format
 
-**Content-Type:** `application/json`
+No 50X errors under concurrent load
 
-```json
+🏗 Tech Stack
+
+Java 17
+
+Spring Boot 3.2
+
+Spring Data JPA
+
+PostgreSQL
+
+Liquibase
+
+HikariCP (Connection Pool)
+
+Docker & Docker Compose
+
+JUnit 5
+
+📡 API Endpoints
+1️⃣ Execute Wallet Operation
+POST /api/v1/wallet
+
+Content-Type: application/json
+
+Request Body
 {
   "walletId": "550e8400-e29b-41d4-a716-446655440000",
   "operationType": "DEPOSIT",
   "amount": 1000
 }
-```
+Request Fields
+Field	Type	Description
+walletId	UUID	Unique wallet identifier
+operationType	String	DEPOSIT or WITHDRAW
+amount	Integer	Positive transaction amount
+Business Rules
 
-### Request Fields
+First DEPOSIT creates the wallet automatically.
 
-| Field | Type | Description |
-|--------|------|-------------|
-| walletId | UUID | Unique wallet identifier |
-| operationType | String | `DEPOSIT` or `WITHDRAW` |
-| amount | Integer | Positive amount |
+WITHDRAW for non-existent wallet → 404 Not Found
 
-### Business Rules
+Insufficient funds → 422 Unprocessable Entity
 
-- First **DEPOSIT** automatically creates the wallet.
-- **WITHDRAW** for a non-existent wallet returns `404 Not Found`.
-- Insufficient balance returns `422 Unprocessable Entity`.
-- Amount must be positive.
+Amount must be positive
 
----
-
-## 2️⃣ Get Wallet Balance
-
-### `GET /api/v1/wallets/{WALLET_UUID}`
-
-### Response
-
-```json
+2️⃣ Get Wallet Balance
+GET /api/v1/wallets/{WALLET_UUID}
+Response
 {
   "walletId": "550e8400-e29b-41d4-a716-446655440000",
   "balance": 1000
 }
-```
+❌ Error Response Format
 
----
+All errors follow this structure:
 
-# ❌ Error Response Format
-
-All errors follow a consistent JSON structure:
-
-```json
 {
   "error": "Short title",
   "message": "Detailed message",
@@ -94,180 +89,104 @@ All errors follow a consistent JSON structure:
   "status": 400,
   "timestamp": "2026-02-28T12:00:00Z"
 }
-```
+Error Cases
+Scenario	HTTP Status
+Wallet not found	404
+Insufficient funds	422
+Invalid JSON	400
+Validation error	400
+⚡ Concurrency Strategy
 
-### Error Scenarios
+To support 1000 RPS per wallet safely:
 
-| Scenario | HTTP Status |
-|-----------|------------|
-| Wallet not found | 404 |
-| Insufficient funds | 422 |
-| Invalid JSON | 400 |
-| Validation error | 400 |
+Pessimistic locking (SELECT ... FOR UPDATE)
 
----
+Short-lived transactions
 
-# ⚡ Concurrency Strategy
+HikariCP connection pool tuning
 
-To safely handle **1000 RPS per wallet**:
+Strict service-layer transactional boundaries
 
-- Pessimistic locking (`SELECT ... FOR UPDATE`)
-- Short-lived transactions
-- HikariCP connection pool tuning
-- Strict transactional boundaries at service layer
-- No unprocessed requests under load (no 50X errors)
+No unprocessed requests (no 50X errors)
 
-This guarantees correctness and prevents race conditions or double spending.
+This prevents race conditions and double spending.
 
----
-
-# 🐳 Running with Docker Compose
-
-## Build and Start Application + Database
-
-```bash
+🐳 Running with Docker
+Build and Start
 docker compose up -d --build
-```
-
-## View Logs
-
-```bash
+View Logs
 docker compose logs -f app
-```
 
-API will be available at:
+API runs at:
 
-```
 http://localhost:8080
-```
-
-(Or custom `SERVER_PORT` if configured.)
-
-## Stop Containers
-
-```bash
+Stop Containers
 docker compose down
-```
 
-To remove database volume:
+Remove database volume:
 
-```bash
 docker compose down -v
-```
+⚙ Configuration (No Rebuild Required)
 
----
+Configure using environment variables or .env.
 
-# ⚙ Configuration (No Rebuild Required)
-
-Application and database settings can be configured via environment variables or a `.env` file.
-
-| Variable | Default | Description |
-|-----------|----------|------------|
-| POSTGRES_DB | wallet_db | Database name |
-| POSTGRES_USER | wallet_user | DB username |
-| POSTGRES_PASSWORD | wallet_pass | DB password |
-| POSTGRES_PORT | 5432 | Database host port |
-| SERVER_PORT | 8080 | Application port |
-| DB_POOL_SIZE | 50 | HikariCP max pool size |
-| DB_URL | — | JDBC URL (inside container) |
-| DB_USERNAME | wallet_user | App DB username |
-| DB_PASSWORD | wallet_pass | App DB password |
-
-### Example `.env`
-
-```env
+Variable	Default	Description
+POSTGRES_DB	wallet_db	Database name
+POSTGRES_USER	wallet_user	Database user
+POSTGRES_PASSWORD	wallet_pass	Database password
+POSTGRES_PORT	5432	DB port
+SERVER_PORT	8080	Application port
+DB_POOL_SIZE	50	HikariCP max pool size
+Example .env
 POSTGRES_PASSWORD=secret
 SERVER_PORT=9090
 DB_POOL_SIZE=100
-```
 
 Then run:
 
-```bash
 docker compose up -d
-```
+💻 Run Locally (Without Docker)
 
-No container rebuild required for configuration changes.
+Start PostgreSQL (localhost:5432)
 
----
+Create database:
 
-# 💻 Run Locally (Without Docker)
-
-1. Ensure PostgreSQL is running (`localhost:5432`)
-2. Create database:
-
-```bash
 createdb -U wallet_user wallet_db
-```
 
-3. Run application:
+Run application:
 
-```bash
 ./mvnw spring-boot:run
-```
-
-Or configure:
-
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-
----
-
-# 🧪 Tests
+🧪 Tests
 
 Requires JDK 17.
 
-Run:
-
-```bash
 ./mvnw test
-```
 
-- Uses H2 in-memory database (PostgreSQL compatibility mode)
-- REST endpoints covered by integration tests
-- Ensures correctness of business logic and error handling
+Uses H2 in-memory database
 
----
+Integration tests cover endpoints
 
-# 🗄 Database
+🗄 Database
 
-Managed via **Liquibase migrations**.
+Managed with Liquibase migrations.
 
-- Automatic schema creation on startup
-- Version-controlled changesets
-- Database history table maintained
+Automatic schema creation
 
----
+Version-controlled changesets
 
-# 📂 Project Structure
+Database history tracking
 
-```
+📂 Project Structure
 src/main/java
-  ├── controller
-  ├── service
-  ├── repository
-  ├── entity
-  └── config
+ ├── controller
+ ├── service
+ ├── repository
+ ├── entity
+ └── config
 
 src/main/resources
-  └── db/changelog (Liquibase migrations)
-```
+ └── db/changelog
+👨‍💻 Author
 
----
-
-# 👨‍💻 Author
-
-**Naveen Kuratti**  
+Naveen Kuratti
 Backend Developer | Java | Spring Boot
-
----
-
-# 📌 Submission Notes
-
-- Application and database run in Docker containers
-- Entire system starts using Docker Compose
-- Configuration changes do not require rebuilding containers
-- Concurrency handled safely (1000 RPS per wallet)
-- Endpoints covered by integration tests
-- Repository uploaded to GitHub as required
